@@ -2,6 +2,7 @@ import '@/styles/globals.css';
 import type { Metadata } from 'next';
 import { Noto_Sans_SC as FontSans } from 'next/font/google';
 
+import Navbar from '@/app/components/navbar';
 import { cn } from '@/lib/utils';
 
 const fontSans = FontSans({
@@ -26,6 +27,7 @@ export default function RootLayout({
           'min-h-screen bg-background font-sans antialiased',
           fontSans.variable
         )}>
+        <Navbar />
         {children}
       </body>
     </html>
