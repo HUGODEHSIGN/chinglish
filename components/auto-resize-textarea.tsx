@@ -2,14 +2,13 @@
 
 import { Textarea } from "@/components/ui/textarea";
 
-import { useEffect, useRef, useState } from "react";
+import { TextareaHTMLAttributes, useEffect, useRef, useState } from "react";
 
-type AutoResizeTextAreaProps = {
-  name?: string;
-};
+type AutoResizeTextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
 
 export default function AutoResizeTextArea({
   name = "text-area",
+  ...props
 }: AutoResizeTextAreaProps) {
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [value, setValue] = useState("");
@@ -39,6 +38,7 @@ export default function AutoResizeTextArea({
       onChange={(e) => setValue(e.target.value)}
       className="resize-none overflow-hidden min-h-[24px]"
       rows={1}
+      {...props}
     />
   );
 }
