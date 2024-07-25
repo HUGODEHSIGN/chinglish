@@ -1,11 +1,16 @@
-import { model } from '@/ai/gemini';
+import Translate from "./components/translate";
 
 export default async function page() {
-  const prompt = 'Write a story about an AI and magic';
-
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-  console.log(text);
-  return <div>{text}</div>;
+  return (
+    <div>
+      <Translate />
+    </div>
+  );
 }
+
+// const prompt = "Write a story about an speakers";
+
+// const result = await model.generateContent(prompt);
+// const response = await result.response;
+// const text = response.text();
+// console.log(text);
