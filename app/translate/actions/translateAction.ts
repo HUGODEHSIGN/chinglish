@@ -135,7 +135,7 @@ export default async function translateAction(
   currentState: any,
   formData: FormData
 ) {
-  const translation = await getTranslation(formData.get("text-area") as string);
+  const translation = await getTranslation(formData.get("content") as string);
 
   const alignment = await getAlignment(translation);
 
