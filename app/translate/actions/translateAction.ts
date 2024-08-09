@@ -1,169 +1,52 @@
 "use server";
 
-import { model } from "@/ai/gemini";
-
-type Translation = {
-  english: string;
-  chinese: string;
-};
-
-async function getTranslation(text: string): Promise<Translation> {
-  const prompt = `Translate this text from either English or Chinese to the other language. 
-  Provide both languages in this schema: 
-
-  '{english: string, chinese: string}'. 
-
-  Here is the text: ${text}
-`;
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return JSON.parse(response.text());
-}
-
-type Alignment = {
-  english: string;
-  chinese: string;
-};
-
-async function getAlignment({
-  english,
-  chinese,
-}: Translation): Promise<string> {
-  const prompt = `Split and match the following sentences word by word or by short phrases.
-  Order and pair each phrase such that each pair are direct translations of each other.
-  You may have to reorder some of the phrases in one, or both languages for the translations to match up.
-  For example, given the sentences: 
-
-'I love running the most' and '我最愛跑步',
-
-the result should be:
-
-'[{english: 'I', chinese: '我'}, {english: 'love', chinese: '愛'}, {english: 'running', chinese: '跑步'}, {english: 'the most', chinese: '最'}]'
-
-Here's the schema again: 
-
-[{english: string, chinese: string}]
-
-Here's the English text: ${english}
-Here's the Chinese text: ${chinese}
-`;
-
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text();
-}
-
-async function checkAlignment(
-  json: string,
-  english: string,
-  chinese: string
-): Promise<Alignment[]> {
-  const prompt = `Double check data in this json snippet. 
-  Each English to Chinese pairing should match each other in translation and definition.
-  Here's the data: ${json}
-  
-  In addition, here are the original sentences so you know where to pull words and characters from.
-  Do not make up new phrases or characters. Only use what's been provided in the sentences.
-
-  English: ${english}
-  Chinese: ${chinese}
-  `;
-
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return JSON.parse(response.text());
-}
-
-async function parseAlignment(data: Alignment[]) {
-  const english = data.map(({ english }, index) => ({
-    word: english,
-    id: index * 2 + 1,
-    references: index * 2 + 2,
-  }));
-
-  const chinese = data.map(({ chinese }, index) => ({
-    word: chinese,
-    id: index * 2 + 2,
-    references: index * 2 + 1,
-  }));
-
-  return { english, chinese };
-}
-
-type ParsedAlignment = {
-  english: {
-    word: string;
-    id: number;
-    references: number;
-  }[];
-  chinese: {
-    word: string;
-    id: number;
-    references: number;
-  }[];
-};
-
-async function joinAlignment(
-  english: string,
-  chinese: string,
-  data: ParsedAlignment
-) {
-  const prompt = `
-  I have two original sentences, one in English and one in Chinese. 
-  Along with a set of data. 
-  The data is segments from these two original sentences, 
-  but are now out of order due to some computations I had to do. 
-  Help me reorder the english and chinese arrays based on their word attribute in this json string: 
-
-  ${JSON.stringify(data)}
-
-  according to this english sentence: ${english},
-  and this chinese sentence: ${chinese}.
-
-  Be sure that only the English entries are placed in the english array, and the Chinese entries are placed in the chinese array.
-
-  Finally, go through each element in the both the English and the Chinese array and add pronunciation to each word or phrase. Use IPA phonetic transcription for the American pronuncation of the english words and PinYin for Chinese.
-  Send back the data in this schema: 
-  '{english: [{id: number, word: string, pronunciation: string, references: number}], chinese: [{id: number, word: string, pronunciation: string, references: number}]}'
-  `;
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return JSON.parse(response.text());
-}
+import { openai } from "@/ai/openai";
+import invariant from "tiny-invariant";
 
 export default async function translateAction(
   currentState: any,
   formData: FormData
 ) {
-  const translation = await getTranslation(formData.get("content") as string);
+  // const translation = await getTranslation(formData.get("content") as string);
 
-  const alignment = await getAlignment(translation);
+  const from = 'english';
 
-  const checkedAlignment = await checkAlignment(
-    alignment,
-    translation.english,
-    translation.chinese
-  );
+  const to = 'chinese'
 
-  const parsedAlignment = await parseAlignment(checkedAlignment);
+  const systemPrompt = `You are a teacher helping a student learn a new language. Parse through the text that is provided by the user by following these steps, in the process, translating the language from ${from} to ${to}. 
+    1. Translate the text from ${from} to ${to}.
+    2. Split up the text into words or short phrases, such that the resulting words or phrases can be directly matched between the two languages.
+    3. Assign each word or phrase with an id in the form of a number. These ids should be unique even amongst the two languages.
+    4. Match up the words or phrases by assigning each word or phrase with an additional property called 'references'. This property references the word in the other languages that is a direct translation to each word.
+    5. Give each word or phrase a property called 'pronunciation', where you will provide the pronunciation for each word.
+    6. Return the sentences in this JSON schema: 
+    {"from": [{"id": number, "word": string, "pronunciation": string, "references": number}], "to": [{"id": number, "word": string, "pronunciation": string, "references": number}]}.
+    Do not wrap the json codes in JSON markers.
+  `
 
-  const finalData = await joinAlignment(
-    translation.english,
-    translation.chinese,
-    parsedAlignment
-  );
+  const res = await openai.chat.completions.create({
+    messages: [
+      {'role': 'system', 'content': systemPrompt},
+      {'role': 'user', 'content': formData.get('content') as string}
+    ],
+    model: 'gpt-4o-2024-08-06'
+  })
 
-  console.log(translation);
+  const content = res.choices[0].message.content
+console.log(content);
+  invariant(content, 'No Content')
+
+  const data = JSON.parse(content);
 
   return {
     status: "success",
-    data: finalData,
+    data,
   };
 }
 
 export type TranslateGeminiResponse = {
-  english: WordBlock[];
-  chinese: WordBlock[];
+  from: WordBlock[];
+  to: WordBlock[];
 };
 
 export type WordBlock = {

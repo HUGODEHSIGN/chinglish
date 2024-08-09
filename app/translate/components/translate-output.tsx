@@ -15,7 +15,7 @@ export default function TranslateOutput({ data }: TranslateOutputProps) {
           <div className="border-l-2 pl-2 flex flex-col gap-4">
             <div className="text-2xl font-bold">English</div>
             <div className="flex flex-row flex-wrap gap-x-1">
-              {data.english.map(({ id, word, pronunciation, references }) => (
+              {data.from.map(({ id, word, pronunciation, references }) => (
                 <WordBlock
                   key={id}
                   word={word}
@@ -30,7 +30,7 @@ export default function TranslateOutput({ data }: TranslateOutputProps) {
           <div className="border-l-2 pl-2 flex flex-col gap-4">
             <div className="text-2xl font-bold">Chinese</div>
             <div className="flex flex-row flex-wrap gap-x-1">
-              {data.chinese.map(({ id, word, pronunciation, references }) => (
+              {data.to.map(({ id, word, pronunciation, references }) => (
                 <WordBlock
                   key={id}
                   word={word}
